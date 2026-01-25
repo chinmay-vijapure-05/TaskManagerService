@@ -4,6 +4,8 @@ import com.example.TaskManagementService.dto.ProjectRequest;
 import com.example.TaskManagementService.dto.ProjectResponse;
 import com.example.TaskManagementService.entity.Project;
 import com.example.TaskManagementService.entity.User;
+import com.example.TaskManagementService.exception.ResourceNotFoundException;
+import com.example.TaskManagementService.exception.UnauthorizedException;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +24,7 @@ public class ProjectService {
     @Transactional
     public ProjectResponse createProject(ProjectRequest request, String userEmail) {
         User owner = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         Project project = new Project();
         project.setName(request.getName());
@@ -40,7 +42,7 @@ public class ProjectService {
 
     public List<ProjectResponse> getUserProjects(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         List<Project> projects = projectRepository.findAllUserProjects(user.getId());
         return projects.stream()
@@ -50,14 +52,14 @@ public class ProjectService {
 
     public ProjectResponse getProjectById(Long id, String userEmail) {
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 
         // Check if user has access
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         if (!hasAccess(project, user)) {
-            throw new RuntimeException("Access denied");
+            throw new UnauthorizedException("You don't have access to this project");
         }
 
         return mapToResponse(project);
@@ -66,13 +68,13 @@ public class ProjectService {
     @Transactional
     public ProjectResponse updateProject(Long id, ProjectRequest request, String userEmail) {
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         if (!project.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("Only owner can update project");
+            throw new UnauthorizedException("Only project owner can update this project");
         }
 
         project.setName(request.getName());
@@ -90,13 +92,13 @@ public class ProjectService {
     @Transactional
     public void deleteProject(Long id, String userEmail) {
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         if (!project.getOwner().getId().equals(user.getId())) {
-            throw new RuntimeException("Only owner can delete project");
+            throw new UnauthorizedException("Only project owner can delete this project");
         }
 
         projectRepository.delete(project);

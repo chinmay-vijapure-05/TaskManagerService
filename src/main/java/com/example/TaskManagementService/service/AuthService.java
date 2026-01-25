@@ -4,6 +4,9 @@ import com.example.TaskManagementService.dto.AuthResponse;
 import com.example.TaskManagementService.dto.LoginRequest;
 import com.example.TaskManagementService.dto.RegisterRequest;
 import com.example.TaskManagementService.entity.User;
+import com.example.TaskManagementService.exception.BadRequestException;
+import com.example.TaskManagementService.exception.DuplicateResourceException;
+import com.example.TaskManagementService.exception.ResourceNotFoundException;
 import com.example.TaskManagementService.repository.UserRepository;
 import com.example.TaskManagementService.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +22,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new DuplicateResourceException("User", "email", request.getEmail());
         }
 
         User user = new User();
@@ -35,10 +38,10 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new BadRequestException("Invalid credentials");
         }
 
         String token = jwtUtil.generateToken(user.getEmail());

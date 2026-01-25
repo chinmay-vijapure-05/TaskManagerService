@@ -5,6 +5,7 @@ import com.example.TaskManagementService.dto.TaskResponse;
 import com.example.TaskManagementService.entity.Project;
 import com.example.TaskManagementService.entity.Task;
 import com.example.TaskManagementService.entity.User;
+import com.example.TaskManagementService.exception.ResourceNotFoundException;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.TaskRepository;
 import com.example.TaskManagementService.repository.UserRepository;
@@ -25,10 +26,10 @@ public class TaskService {
     @Transactional
     public TaskResponse createTask(TaskRequest request, String userEmail) {
         User creator = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         Project project = projectRepository.findById(request.getProjectId())
-                .orElseThrow(() -> new RuntimeException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.getProjectId()));
 
         Task task = new Task();
         task.setTitle(request.getTitle());
@@ -41,7 +42,7 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException("Assignee not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", "id", request.getAssigneeId()));
             task.setAssignee(assignee);
         }
 
@@ -58,14 +59,14 @@ public class TaskService {
 
     public TaskResponse getTaskById(Long id) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         return mapToResponse(task);
     }
 
     @Transactional
     public TaskResponse updateTask(Long id, TaskRequest request) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -75,7 +76,7 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new RuntimeException("Assignee not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", "id", request.getAssigneeId()));
             task.setAssignee(assignee);
         }
 
@@ -86,7 +87,7 @@ public class TaskService {
     @Transactional
     public void deleteTask(Long id) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         taskRepository.delete(task);
     }
 
