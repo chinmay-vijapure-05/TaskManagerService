@@ -1,14 +1,20 @@
 package com.example.TaskManagementService.service;
 
+import com.example.TaskManagementService.dto.PagedResponse;
 import com.example.TaskManagementService.dto.ProjectRequest;
 import com.example.TaskManagementService.dto.ProjectResponse;
 import com.example.TaskManagementService.entity.Project;
+import com.example.TaskManagementService.entity.ProjectStatus;
 import com.example.TaskManagementService.entity.User;
 import com.example.TaskManagementService.exception.ResourceNotFoundException;
 import com.example.TaskManagementService.exception.UnauthorizedException;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -126,5 +132,29 @@ public class ProjectService {
                 project.getCreatedAt(),
                 project.getUpdatedAt()
         );
+    }
+
+    public PagedResponse<ProjectResponse> getUserProjectsPaginated(
+            String userEmail,
+            ProjectStatus status,
+            String search,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
+
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<Project> projectPage = projectRepository.searchUserProjects(user.getId(), status, search, pageable);
+
+        List<ProjectResponse> content = projectPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return new PagedResponse<>(content, projectPage);
     }
 }

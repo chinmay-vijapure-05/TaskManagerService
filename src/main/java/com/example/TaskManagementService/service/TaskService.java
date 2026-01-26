@@ -1,15 +1,18 @@
 package com.example.TaskManagementService.service;
 
+import com.example.TaskManagementService.dto.PagedResponse;
 import com.example.TaskManagementService.dto.TaskRequest;
 import com.example.TaskManagementService.dto.TaskResponse;
-import com.example.TaskManagementService.entity.Project;
-import com.example.TaskManagementService.entity.Task;
-import com.example.TaskManagementService.entity.User;
+import com.example.TaskManagementService.entity.*;
 import com.example.TaskManagementService.exception.ResourceNotFoundException;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.TaskRepository;
 import com.example.TaskManagementService.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -121,5 +124,27 @@ public class TaskService {
                 task.getCreatedAt(),
                 task.getUpdatedAt()
         );
+    }
+
+    public PagedResponse<TaskResponse> getProjectTasksPaginated(
+            Long projectId,
+            TaskStatus status,
+            TaskPriority priority,
+            String search,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<Task> taskPage = taskRepository.searchTasks(projectId, status, priority, search, pageable);
+
+        List<TaskResponse> content = taskPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return new PagedResponse<>(content, taskPage);
     }
 }

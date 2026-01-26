@@ -1,7 +1,9 @@
 package com.example.TaskManagementService.controller;
 
+import com.example.TaskManagementService.dto.PagedResponse;
 import com.example.TaskManagementService.dto.ProjectRequest;
 import com.example.TaskManagementService.dto.ProjectResponse;
+import com.example.TaskManagementService.entity.ProjectStatus;
 import com.example.TaskManagementService.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,22 @@ public class ProjectController {
             @AuthenticationPrincipal UserDetails userDetails) {
         List<ProjectResponse> projects = projectService.getUserProjects(userDetails.getUsername());
         return ResponseEntity.ok(projects);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<PagedResponse<ProjectResponse>> searchProjects(
+            @RequestParam(required = false) ProjectStatus status,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        PagedResponse<ProjectResponse> response = projectService.getUserProjectsPaginated(
+                userDetails.getUsername(), status, search, page, size, sortBy, sortDir
+        );
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
