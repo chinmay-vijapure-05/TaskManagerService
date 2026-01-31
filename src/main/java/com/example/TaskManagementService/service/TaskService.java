@@ -9,6 +9,7 @@ import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.TaskRepository;
 import com.example.TaskManagementService.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,18 +22,28 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TaskService {
+
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
 
     @Transactional
     public TaskResponse createTask(TaskRequest request, String userEmail) {
+        log.info("Create task request received by user={} for projectId={}", userEmail, request.getProjectId());
+
         User creator = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
+                .orElseThrow(() -> {
+                    log.warn("Create task failed: user not found email={}", userEmail);
+                    return new ResourceNotFoundException("User", "email", userEmail);
+                });
 
         Project project = projectRepository.findById(request.getProjectId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.getProjectId()));
+                .orElseThrow(() -> {
+                    log.warn("Create task failed: project not found id={}", request.getProjectId());
+                    return new ResourceNotFoundException("Project", "id", request.getProjectId());
+                });
 
         Task task = new Task();
         task.setTitle(request.getTitle());
@@ -45,31 +56,53 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", "id", request.getAssigneeId()));
+                    .orElseThrow(() -> {
+                        log.warn("Create task failed: assignee not found id={}", request.getAssigneeId());
+                        return new ResourceNotFoundException("Assignee", "id", request.getAssigneeId());
+                    });
             task.setAssignee(assignee);
+            log.debug("Task assigned to userId={}", assignee.getId());
         }
 
         Task saved = taskRepository.save(task);
+        log.info("Task created successfully id={} projectId={}", saved.getId(), project.getId());
+
         return mapToResponse(saved);
     }
 
     public List<TaskResponse> getProjectTasks(Long projectId) {
+        log.info("Fetching tasks for projectId={}", projectId);
+
         List<Task> tasks = taskRepository.findByProjectId(projectId);
+        log.debug("Found {} tasks for projectId={}", tasks.size(), projectId);
+
         return tasks.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     public TaskResponse getTaskById(Long id) {
+        log.info("Fetching task id={}", id);
+
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+                .orElseThrow(() -> {
+                    log.warn("Task not found id={}", id);
+                    return new ResourceNotFoundException("Task", "id", id);
+                });
+
+        log.info("Task fetched successfully id={}", id);
         return mapToResponse(task);
     }
 
     @Transactional
     public TaskResponse updateTask(Long id, TaskRequest request) {
+        log.info("Update task request id={}", id);
+
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+                .orElseThrow(() -> {
+                    log.warn("Update failed: task not found id={}", id);
+                    return new ResourceNotFoundException("Task", "id", id);
+                });
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -79,19 +112,64 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", "id", request.getAssigneeId()));
+                    .orElseThrow(() -> {
+                        log.warn("Update failed: assignee not found id={}", request.getAssigneeId());
+                        return new ResourceNotFoundException("Assignee", "id", request.getAssigneeId());
+                    });
             task.setAssignee(assignee);
+            log.debug("Updated task assignee userId={}", assignee.getId());
         }
 
         Task updated = taskRepository.save(task);
+        log.info("Task updated successfully id={}", id);
+
         return mapToResponse(updated);
     }
 
     @Transactional
     public void deleteTask(Long id) {
+        log.info("Delete task request id={}", id);
+
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+                .orElseThrow(() -> {
+                    log.warn("Delete failed: task not found id={}", id);
+                    return new ResourceNotFoundException("Task", "id", id);
+                });
+
         taskRepository.delete(task);
+        log.info("Task deleted successfully id={}", id);
+    }
+
+    public PagedResponse<TaskResponse> getProjectTasksPaginated(
+            Long projectId,
+            TaskStatus status,
+            TaskPriority priority,
+            String search,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        log.info(
+                "Paginated task fetch projectId={} page={} size={} status={} priority={} search={}",
+                projectId, page, size, status, priority, search
+        );
+
+        Sort.Direction direction =
+                sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<Task> taskPage =
+                taskRepository.searchTasks(projectId, status, priority, search, pageable);
+
+        log.debug("Paginated task result totalElements={}", taskPage.getTotalElements());
+
+        List<TaskResponse> content = taskPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return new PagedResponse<>(content, taskPage);
     }
 
     private TaskResponse mapToResponse(Task task) {
@@ -124,27 +202,5 @@ public class TaskService {
                 task.getCreatedAt(),
                 task.getUpdatedAt()
         );
-    }
-
-    public PagedResponse<TaskResponse> getProjectTasksPaginated(
-            Long projectId,
-            TaskStatus status,
-            TaskPriority priority,
-            String search,
-            int page,
-            int size,
-            String sortBy,
-            String sortDir) {
-
-        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
-
-        Page<Task> taskPage = taskRepository.searchTasks(projectId, status, priority, search, pageable);
-
-        List<TaskResponse> content = taskPage.getContent().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-
-        return new PagedResponse<>(content, taskPage);
     }
 }

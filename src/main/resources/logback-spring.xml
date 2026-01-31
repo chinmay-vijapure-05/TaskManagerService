@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ===================== -->
+    <!-- Global Properties -->
+    <!-- ===================== -->
+    <property name="LOG_PATH" value="logs"/>
+
+    <!--
+        Single-line log pattern:
+        - Replaces all newlines with spaces
+        - Keeps exception info on ONE line only
+    -->
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %replace(%msg){'[\r\n]+',' '}%replace(%ex{short}){'[\r\n]+',' '}%n"/>
+
+    <!-- ===================== -->
+    <!-- Console Appender -->
+    <!-- ===================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread]
+                %highlight(%-5level)
+                %cyan(%logger{36}) -
+                %replace(%msg){'[\r\n]+',' '}
+                %replace(%ex{short}){'[\r\n]+',' '}
+                %n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- ===================== -->
+    <!-- Application File Appender -->
+    <!-- ===================== -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/task-manager.log</file>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/archived/task-manager.%d{yyyy-MM-dd}.log
+            </fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===================== -->
+    <!-- Error File Appender -->
+    <!-- ===================== -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/error.log</file>
+
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${LOG_PATH}/archived/error.%d{yyyy-MM-dd}.log
+            </fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ===================== -->
+    <!-- Application Logger -->
+    <!-- ===================== -->
+    <logger name="com.example.TaskManagementService"
+            level="DEBUG"
+            additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="APP_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- ===================== -->
+    <!-- Framework Loggers -->
+    <!-- ===================== -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="org.hibernate" level="INFO"/>
+
+    <!-- ===================== -->
+    <!-- Root Logger -->
+    <!-- ===================== -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="APP_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+
+</configuration>

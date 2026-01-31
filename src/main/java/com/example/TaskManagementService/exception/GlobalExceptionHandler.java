@@ -2,6 +2,7 @@ package com.example.TaskManagementService.exception;
 
 import com.example.TaskManagementService.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,11 +17,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
-            ResourceNotFoundException ex, HttpServletRequest request) {
+            ResourceNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Resource not found: path={} message={}",
+                request.getRequestURI(), ex.getMessage());
+
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.NOT_FOUND.value(),
@@ -33,7 +40,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorizedException(
-            UnauthorizedException ex, HttpServletRequest request) {
+            UnauthorizedException ex,
+            HttpServletRequest request) {
+
+        log.warn("Unauthorized access: path={} message={}",
+                request.getRequestURI(), ex.getMessage());
+
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.FORBIDDEN.value(),
@@ -46,7 +58,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequestException(
-            BadRequestException ex, HttpServletRequest request) {
+            BadRequestException ex,
+            HttpServletRequest request) {
+
+        log.warn("Bad request: path={} message={}",
+                request.getRequestURI(), ex.getMessage());
+
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.BAD_REQUEST.value(),
@@ -61,6 +78,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDuplicateResourceException(
             DuplicateResourceException ex,
             HttpServletRequest request) {
+
+        log.warn("Duplicate resource: path={} message={}",
+                request.getRequestURI(), ex.getMessage());
+
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
@@ -73,13 +94,20 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
+
         List<ErrorResponse.ValidationError> validationErrors = new ArrayList<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            validationErrors.add(new ErrorResponse.ValidationError(fieldName, errorMessage));
+            validationErrors.add(
+                    new ErrorResponse.ValidationError(fieldName, errorMessage)
+            );
         });
+
+        log.warn("Validation failed: path={} errors={}",
+                request.getRequestURI(), validationErrors);
 
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
@@ -96,6 +124,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
             Exception ex,
             HttpServletRequest request) {
+
+        log.warn("Authentication failed: path={}", request.getRequestURI());
+
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.UNAUTHORIZED.value(),
@@ -110,6 +141,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception ex,
             HttpServletRequest request) {
+
+        log.error("Unhandled exception occurred: path={}",
+                request.getRequestURI(), ex);
+
         ErrorResponse error = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -118,9 +153,8 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
 
-        // Log the full exception for debugging
-        ex.printStackTrace();
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(error);
     }
 }
