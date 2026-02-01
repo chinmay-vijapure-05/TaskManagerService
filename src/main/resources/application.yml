@@ -14,6 +14,20 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+  # Redis Configuration
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      timeout: 60000
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000  # 10 minutes in milliseconds
+      cache-null-values: false
+
 jwt:
   secret: ${JWT_SECRET:DRx7Tk2AmNwEu32nDw9FgZof3NrHOQ5PnMT8x9HHRf5}
   expiration: ${JWT_EXPIRATION:86400000}
@@ -22,12 +36,13 @@ logging:
   level:
     com.example.TaskManagementService: DEBUG
     org.springframework.security: DEBUG
+    org.springframework.cache: DEBUG
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,caches
   endpoint:
     health:
       show-details: when-authorized

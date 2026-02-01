@@ -18,6 +18,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: taskmanager-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - taskmanager-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
   app:
     build:
       context: .
@@ -25,6 +41,8 @@ services:
     container_name: taskmanager-app
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskmanager
@@ -34,6 +52,8 @@ services:
       SPRING_JPA_SHOW_SQL: false
       JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-min-256-bits
       JWT_EXPIRATION: 86400000
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
     ports:
       - "8080:8080"
     networks:
@@ -44,6 +64,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

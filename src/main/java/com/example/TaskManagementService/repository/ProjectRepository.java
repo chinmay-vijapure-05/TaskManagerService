@@ -21,6 +21,12 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     @Query("SELECT p FROM Project p WHERE p.owner.id = :userId OR :userId IN (SELECT m.id FROM p.members m)")
     List<Project> findAllUserProjects(Long userId);
 
+    @Query("SELECT p FROM Project p WHERE p.owner.id = :userId OR :userId IN (SELECT m.id FROM p.members m)")
+    Page<Project> findAllUserProjects(
+            @Param("userId") Long userId,
+            Pageable pageable
+    );
+
     @Query("SELECT p FROM Project p WHERE (p.owner.id = :userId OR :userId IN (SELECT m.id FROM p.members m)) " +
             "AND (:status IS NULL OR p.status = :status) " +
             "AND (:search IS NULL OR :search = '' OR LOWER(CAST(p.name AS string)) LIKE LOWER(CONCAT('%', :search, '%')))")

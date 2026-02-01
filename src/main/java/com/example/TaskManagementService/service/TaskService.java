@@ -16,6 +16,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,8 +34,13 @@ public class TaskService {
     private final UserRepository userRepository;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", allEntries = true),
+            @CacheEvict(value = "projects", key = "#request.projectId")
+    })
     public TaskResponse createTask(TaskRequest request, String userEmail) {
-        log.info("Create task request received by user={} for projectId={}", userEmail, request.getProjectId());
+        log.info("Creating new task '{}' in project {} by user: {}",
+                request.getTitle(), request.getProjectId(), userEmail);
 
         User creator = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> {
@@ -81,7 +90,9 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "tasks", key = "#id")
     public TaskResponse getTaskById(Long id) {
+        log.debug("Fetching task with ID: {} (checking cache first)", id);
         log.info("Fetching task id={}", id);
 
         Task task = taskRepository.findById(id)
@@ -95,8 +106,12 @@ public class TaskService {
     }
 
     @Transactional
+    @Caching(
+            put = @CachePut(value = "tasks", key = "#id"),
+            evict = @CacheEvict(value = "projects", allEntries = true)
+    )
     public TaskResponse updateTask(Long id, TaskRequest request) {
-        log.info("Update task request id={}", id);
+        log.info("Updating task {} - status: {}, priority: {}", id, request.getStatus(), request.getPriority());
 
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> {
@@ -127,6 +142,10 @@ public class TaskService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "tasks", key = "#id"),
+            @CacheEvict(value = "projects", allEntries = true)
+    })
     public void deleteTask(Long id) {
         log.info("Delete task request id={}", id);
 
