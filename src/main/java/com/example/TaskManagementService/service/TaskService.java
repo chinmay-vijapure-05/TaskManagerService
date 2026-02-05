@@ -1,25 +1,28 @@
 package com.example.TaskManagementService.service;
 
-import com.example.TaskManagementService.dto.PagedResponse;
+import com.example.TaskManagementService.dto.NotificationMessage;
 import com.example.TaskManagementService.dto.TaskRequest;
 import com.example.TaskManagementService.dto.TaskResponse;
-import com.example.TaskManagementService.entity.*;
+import com.example.TaskManagementService.dto.PagedResponse;
+import com.example.TaskManagementService.entity.Project;
+import com.example.TaskManagementService.entity.Task;
+import com.example.TaskManagementService.entity.User;
 import com.example.TaskManagementService.exception.ResourceNotFoundException;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.TaskRepository;
 import com.example.TaskManagementService.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,10 +31,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class TaskService {
-
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final WebSocketService webSocketService;  // Add this
 
     @Transactional
     @Caching(evict = {
@@ -43,16 +46,10 @@ public class TaskService {
                 request.getTitle(), request.getProjectId(), userEmail);
 
         User creator = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> {
-                    log.warn("Create task failed: user not found email={}", userEmail);
-                    return new ResourceNotFoundException("User", "email", userEmail);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
         Project project = projectRepository.findById(request.getProjectId())
-                .orElseThrow(() -> {
-                    log.warn("Create task failed: project not found id={}", request.getProjectId());
-                    return new ResourceNotFoundException("Project", "id", request.getProjectId());
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", request.getProjectId()));
 
         Task task = new Task();
         task.setTitle(request.getTitle());
@@ -65,43 +62,66 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> {
-                        log.warn("Create task failed: assignee not found id={}", request.getAssigneeId());
-                        return new ResourceNotFoundException("Assignee", "id", request.getAssigneeId());
-                    });
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", "id", request.getAssigneeId()));
             task.setAssignee(assignee);
-            log.debug("Task assigned to userId={}", assignee.getId());
+
+            // Send notification to assignee
+            webSocketService.sendUserNotification(
+                    assignee.getEmail(),
+                    new NotificationMessage(
+                            "New Task Assigned",
+                            "You have been assigned to task: " + task.getTitle(),
+                            "INFO",
+                            assignee.getEmail()
+                    )
+            );
         }
 
         Task saved = taskRepository.save(task);
-        log.info("Task created successfully id={} projectId={}", saved.getId(), project.getId());
+        TaskResponse response = mapToResponse(saved);
 
-        return mapToResponse(saved);
+        log.info("Task created successfully with ID: {} in project: {}", saved.getId(), request.getProjectId());
+
+        // Send WebSocket update to all project members
+        webSocketService.sendTaskUpdate(request.getProjectId(), "CREATE", response, userEmail);
+
+        return response;
     }
 
     public List<TaskResponse> getProjectTasks(Long projectId) {
-        log.info("Fetching tasks for projectId={}", projectId);
-
         List<Task> tasks = taskRepository.findByProjectId(projectId);
-        log.debug("Found {} tasks for projectId={}", tasks.size(), projectId);
-
         return tasks.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
+    public PagedResponse<TaskResponse> getProjectTasksPaginated(
+            Long projectId,
+            com.example.TaskManagementService.entity.TaskStatus status,
+            com.example.TaskManagementService.entity.TaskPriority priority,
+            String search,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir) {
+
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<Task> taskPage = taskRepository.searchTasks(projectId, status, priority, search, pageable);
+
+        List<TaskResponse> content = taskPage.getContent().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        return new PagedResponse<>(content, taskPage);
+    }
+
     @Cacheable(value = "tasks", key = "#id")
     public TaskResponse getTaskById(Long id) {
         log.debug("Fetching task with ID: {} (checking cache first)", id);
-        log.info("Fetching task id={}", id);
-
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Task not found id={}", id);
-                    return new ResourceNotFoundException("Task", "id", id);
-                });
-
-        log.info("Task fetched successfully id={}", id);
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
         return mapToResponse(task);
     }
 
@@ -114,10 +134,10 @@ public class TaskService {
         log.info("Updating task {} - status: {}, priority: {}", id, request.getStatus(), request.getPriority());
 
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Update failed: task not found id={}", id);
-                    return new ResourceNotFoundException("Task", "id", id);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+
+        String oldStatus = task.getStatus() != null ? task.getStatus().toString() : null;
+        User oldAssignee = task.getAssignee();
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -127,18 +147,47 @@ public class TaskService {
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> {
-                        log.warn("Update failed: assignee not found id={}", request.getAssigneeId());
-                        return new ResourceNotFoundException("Assignee", "id", request.getAssigneeId());
-                    });
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee", "id", request.getAssigneeId()));
+
+            // Notify if assignee changed
+            if (oldAssignee == null || !oldAssignee.getId().equals(assignee.getId())) {
+                webSocketService.sendUserNotification(
+                        assignee.getEmail(),
+                        new NotificationMessage(
+                                "Task Assigned",
+                                "You have been assigned to task: " + task.getTitle(),
+                                "INFO",
+                                assignee.getEmail()
+                        )
+                );
+            }
+
             task.setAssignee(assignee);
-            log.debug("Updated task assignee userId={}", assignee.getId());
         }
 
         Task updated = taskRepository.save(task);
-        log.info("Task updated successfully id={}", id);
+        TaskResponse response = mapToResponse(updated);
 
-        return mapToResponse(updated);
+        // Send WebSocket update
+        webSocketService.sendTaskUpdate(task.getProject().getId(), "UPDATE", response, "system");
+
+        // Notify on status change
+        String newStatus = updated.getStatus() != null ? updated.getStatus().toString() : null;
+        if (oldStatus != null && !oldStatus.equals(newStatus)) {
+            if (updated.getAssignee() != null) {
+                webSocketService.sendUserNotification(
+                        updated.getAssignee().getEmail(),
+                        new NotificationMessage(
+                                "Task Status Changed",
+                                "Task '" + updated.getTitle() + "' status changed to: " + newStatus,
+                                "INFO",
+                                updated.getAssignee().getEmail()
+                        )
+                );
+            }
+        }
+
+        return response;
     }
 
     @Transactional
@@ -147,48 +196,20 @@ public class TaskService {
             @CacheEvict(value = "projects", allEntries = true)
     })
     public void deleteTask(Long id) {
-        log.info("Delete task request id={}", id);
+        log.info("Deleting task with ID: {}", id);
 
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Delete failed: task not found id={}", id);
-                    return new ResourceNotFoundException("Task", "id", id);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("Task", "id", id));
+
+        Long projectId = task.getProject().getId();
+        String taskTitle = task.getTitle();
 
         taskRepository.delete(task);
-        log.info("Task deleted successfully id={}", id);
-    }
 
-    public PagedResponse<TaskResponse> getProjectTasksPaginated(
-            Long projectId,
-            TaskStatus status,
-            TaskPriority priority,
-            String search,
-            int page,
-            int size,
-            String sortBy,
-            String sortDir) {
-
-        log.info(
-                "Paginated task fetch projectId={} page={} size={} status={} priority={} search={}",
-                projectId, page, size, status, priority, search
-        );
-
-        Sort.Direction direction =
-                sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
-
-        Page<Task> taskPage =
-                taskRepository.searchTasks(projectId, status, priority, search, pageable);
-
-        log.debug("Paginated task result totalElements={}", taskPage.getTotalElements());
-
-        List<TaskResponse> content = taskPage.getContent().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-
-        return new PagedResponse<>(content, taskPage);
+        // Send WebSocket update
+        webSocketService.sendTaskUpdate(projectId, "DELETE",
+                new TaskResponse(id, taskTitle, null, projectId, null, null, null, null, null, null, null, null),
+                "system");
     }
 
     private TaskResponse mapToResponse(Task task) {

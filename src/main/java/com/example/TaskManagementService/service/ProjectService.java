@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final WebSocketService webSocketService;
 
     @Transactional
     @Caching(evict = {
@@ -55,9 +56,14 @@ public class ProjectService {
         }
 
         Project saved = projectRepository.save(project);
+        ProjectResponse response = mapToResponse(saved);
+
         log.info("Project created successfully with ID: {} by user: {}", saved.getId(), userEmail);
 
-        return mapToResponse(saved);
+        // Send WebSocket notification
+        webSocketService.sendProjectUpdateMessage(saved.getId(), "CREATE", response, userEmail);
+
+        return response;
     }
 
     @Cacheable(value = "projects", key = "'user:' + #userEmail")
@@ -153,9 +159,14 @@ public class ProjectService {
         }
 
         Project updated = projectRepository.save(project);
+        ProjectResponse response = mapToResponse(updated);
+
         log.info("Project {} updated successfully by user: {} (cache updated)", id, userEmail);
 
-        return mapToResponse(updated);
+        // Send WebSocket notification
+        webSocketService.sendProjectUpdateMessage(id, "UPDATE", response, userEmail);
+
+        return response;
     }
 
     @Transactional
@@ -177,6 +188,14 @@ public class ProjectService {
             log.warn("Unauthorized delete attempt - User {} is not owner of project {}", userEmail, id);
             throw new UnauthorizedException("Only project owner can delete this project");
         }
+
+        // Send WebSocket notification before deleting
+        webSocketService.sendProjectUpdateMessage(
+                id,
+                "DELETE",
+                new ProjectResponse(id, project.getName(), null, null, null, null, null, null, null, null),
+                userEmail
+        );
 
         projectRepository.delete(project);
         log.info("Project {} deleted successfully by user: {} (cache cleared)", id, userEmail);
