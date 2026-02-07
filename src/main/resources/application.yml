@@ -25,8 +25,19 @@ spring:
   cache:
     type: redis
     redis:
-      time-to-live: 600000  # 10 minutes in milliseconds
+      time-to-live: 600000
       cache-null-values: false
+
+  # Task Execution Pool (for @Async)
+  task:
+    execution:
+      pool:
+        core-size: 5
+        max-size: 10
+        queue-capacity: 100
+    scheduling:
+      pool:
+        size: 5
 
 jwt:
   secret: ${JWT_SECRET:DRx7Tk2AmNwEu32nDw9FgZof3NrHOQ5PnMT8x9HHRf5}
@@ -37,12 +48,13 @@ logging:
     com.example.TaskManagementService: DEBUG
     org.springframework.security: DEBUG
     org.springframework.cache: DEBUG
+    org.springframework.scheduling: DEBUG
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,caches
+        include: health,info,metrics,caches,scheduledtasks
   endpoint:
     health:
       show-details: when-authorized

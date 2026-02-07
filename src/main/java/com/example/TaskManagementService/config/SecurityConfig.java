@@ -27,6 +27,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/cache/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/jobs/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
