@@ -36,14 +36,25 @@ public abstract class BaseIntegrationTest {
                     .withPassword("test");
 
     static {
-        POSTGRES.start();
+        if (System.getenv("CI") == null) {
+            POSTGRES.start();
+        }
     }
 
     @DynamicPropertySource
     static void overrideProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.datasource.driver-class-name", POSTGRES::getDriverClassName);
+
+        if (System.getenv("CI") == null) {
+            registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+            registry.add("spring.datasource.username", POSTGRES::getUsername);
+            registry.add("spring.datasource.password", POSTGRES::getPassword);
+            registry.add("spring.datasource.driver-class-name", POSTGRES::getDriverClassName);
+        } else {
+            registry.add("spring.datasource.url",
+                    () -> "jdbc:postgresql://localhost:5432/testdb");
+            registry.add("spring.datasource.username", () -> "test");
+            registry.add("spring.datasource.password", () -> "test");
+        }
     }
+
 }

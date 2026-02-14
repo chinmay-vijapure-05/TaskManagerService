@@ -1,5 +1,6 @@
 # 🚀 Task Management Service
 
+![CI](https://github.com/chinmay-vijapure-05/TaskManagerService/actions/workflows/ci.yml/badge.svg)
 ![Java](https://img.shields.io/badge/Java-21-blue)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-green)
 ![Build](https://img.shields.io/badge/Build-Maven-orange)
