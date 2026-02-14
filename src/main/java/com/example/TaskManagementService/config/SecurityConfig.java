@@ -28,6 +28,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/cache/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/jobs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
