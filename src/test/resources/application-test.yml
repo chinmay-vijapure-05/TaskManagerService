@@ -1,0 +1,31 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  data:
+    redis:
+      enabled: false  # Disable Redis for tests
+  cache:
+    type: none  # Disable cache for tests
+  task:
+    scheduling:
+      enabled: false  # Disable scheduled jobs in tests
+  main:
+    log-startup-info: false
+    allow-bean-definition-overriding: true
+
+jwt:
+  secret: DRx7Tk2AmNwEu32nDw9FgZof3NrHOQ5PnMT8x9HHRf5
+  expiration: 86400000
+
+logging:
+  level:
+    com.example.TaskManagementService: DEBUG
+    org.testcontainers: INFO
+
+debug: false
