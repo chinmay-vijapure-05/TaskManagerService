@@ -41,13 +41,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @Valid @RequestBody RegisterRequest request) {
-
-        log.info("Registration request received for email={}", request.getEmail());
-
         AuthResponse response = authService.register(request);
-
-        log.info("User registered successfully for email={}", request.getEmail());
-
         return ResponseEntity.ok(response);
     }
 
@@ -67,13 +61,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request) {
-
-        log.info("Login attempt received for email={}", request.getEmail());
-
         AuthResponse response = authService.login(request);
-
-        log.info("Login successful for email={}", request.getEmail());
-
         return ResponseEntity.ok(response);
     }
 }
