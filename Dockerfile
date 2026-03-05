@@ -26,6 +26,10 @@ WORKDIR /app
 
 # Create non-root user for security
 RUN addgroup -S spring && adduser -S spring -G spring
+
+# FIX: create logs directory required by logback
+RUN mkdir -p /app/logs
+
 USER spring:spring
 
 # Copy the built jar from build stage
