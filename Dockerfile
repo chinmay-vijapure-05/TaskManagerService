@@ -27,8 +27,8 @@ WORKDIR /app
 # Create non-root user for security
 RUN addgroup -S spring && adduser -S spring -G spring
 
-# FIX: create logs directory required by logback
-RUN mkdir -p /app/logs
+# FIX: create logs directory and give permission
+RUN mkdir -p /app/logs && chown -R spring:spring /app/logs
 
 USER spring:spring
 
