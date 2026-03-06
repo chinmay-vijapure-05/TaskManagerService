@@ -17,9 +17,9 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
 
                 registry.addMapping("/**")
-                        .allowedOrigins(
+                        .allowedOriginPatterns(
                                 "http://localhost:5173",
-                                "https://taskmanagerui-6fbe.onrender.com"
+                                "https://*.onrender.com"
                         )
                         .allowedMethods("*")
                         .allowedHeaders("*")
