@@ -8,6 +8,9 @@ WORKDIR /app
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 
+# FIX: give execute permission
+RUN chmod +x mvnw
+
 # Download dependencies (this layer will be cached)
 RUN ./mvnw dependency:go-offline -B
 
@@ -23,6 +26,10 @@ WORKDIR /app
 
 # Create non-root user for security
 RUN addgroup -S spring && adduser -S spring -G spring
+
+# FIX: create logs directory and give permission
+RUN mkdir -p /app/logs && chown -R spring:spring /app/logs
+
 USER spring:spring
 
 # Copy the built jar from build stage
