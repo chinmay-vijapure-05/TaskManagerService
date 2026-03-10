@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 public class ScheduledJobsService {
     private final TaskRepository taskRepository;
     private final WebSocketService webSocketService;
+    private final EmailService emailService;
 
     /**
      * Check for upcoming task deadlines every hour
@@ -94,6 +95,11 @@ public class ScheduledJobsService {
             );
 
             webSocketService.sendUserNotification(task.getAssignee().getEmail(), notification);
+            emailService.sendTaskReminderEmail(
+                    task.getAssignee().getEmail(),
+                    task.getTitle(),
+                    hoursOverdue
+            );
             log.info("Sent overdue notification for task {} to {}", task.getId(), task.getAssignee().getEmail());
         });
     }
@@ -181,6 +187,7 @@ public class ScheduledJobsService {
      */
     @Async
     private void sendTaskReminder(TaskReminderDto reminder) {
+
         NotificationMessage notification = new NotificationMessage(
                 "⏰ Task Reminder",
                 String.format("Task '%s' is due in %d hours! Priority: %s",
@@ -191,7 +198,20 @@ public class ScheduledJobsService {
                 reminder.getAssigneeEmail()
         );
 
-        webSocketService.sendUserNotification(reminder.getAssigneeEmail(), notification);
-        log.info("Sent reminder for task {} to {}", reminder.getTaskId(), reminder.getAssigneeEmail());
+        webSocketService.sendUserNotification(
+                reminder.getAssigneeEmail(),
+                notification
+        );
+
+        // NEW: send email reminder
+        emailService.sendTaskReminderEmail(
+                reminder.getAssigneeEmail(),
+                reminder.getTaskTitle(),
+                reminder.getHoursUntilDue()
+        );
+
+        log.info("Sent reminder for task {} to {}",
+                reminder.getTaskId(),
+                reminder.getAssigneeEmail());
     }
 }
