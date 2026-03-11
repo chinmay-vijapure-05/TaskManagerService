@@ -9,9 +9,11 @@ import com.example.TaskManagementService.entity.TaskStatus;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.TaskRepository;
 import com.example.TaskManagementService.repository.UserRepository;
+import com.example.TaskManagementService.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -29,6 +31,9 @@ class TaskControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private TaskRepository taskRepository;
+
+    @MockBean
+    private EmailService emailService;
 
     private String authToken;
     private Long projectId;

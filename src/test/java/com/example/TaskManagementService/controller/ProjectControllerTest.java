@@ -5,9 +5,11 @@ import com.example.TaskManagementService.dto.ProjectRequest;
 import com.example.TaskManagementService.dto.RegisterRequest;
 import com.example.TaskManagementService.repository.ProjectRepository;
 import com.example.TaskManagementService.repository.UserRepository;
+import com.example.TaskManagementService.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -22,6 +24,9 @@ class ProjectControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @MockBean
+    private EmailService emailService;
 
     private String authToken;
 
