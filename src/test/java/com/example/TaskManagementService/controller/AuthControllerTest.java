@@ -4,11 +4,9 @@ import com.example.TaskManagementService.BaseIntegrationTest;
 import com.example.TaskManagementService.dto.LoginRequest;
 import com.example.TaskManagementService.dto.RegisterRequest;
 import com.example.TaskManagementService.repository.UserRepository;
-import com.example.TaskManagementService.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 
 import static org.hamcrest.Matchers.*;
@@ -19,8 +17,6 @@ class AuthControllerTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
-    @MockBean
-    private EmailService emailService;
 
     @BeforeEach
     void cleanup() {
