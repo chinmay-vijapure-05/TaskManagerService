@@ -2,18 +2,20 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: taskmanager-postgres
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: taskmanager
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - taskmanager-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,7 +23,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: taskmanager-redis
-    ports:
+    expose:
       - "6379"
     networks:
       - taskmanager-network
@@ -39,20 +41,22 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: taskmanager-app
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/taskmanager
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: false
-      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-min-256-bits
-      JWT_EXPIRATION: 86400000
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
     ports:
@@ -69,9 +73,7 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
 
 networks:
   taskmanager-network:
