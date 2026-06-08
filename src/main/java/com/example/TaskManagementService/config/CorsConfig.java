@@ -19,8 +19,7 @@ public class CorsConfig {
                 registry.addMapping("/**")
                         .allowedOriginPatterns(
                                 "http://localhost:5173",
-                                "https://*.onrender.com",
-                                "https://task-manager-ui-psi-mauve.vercel.app/"
+                                "https://*.vercel.app"
                         )
                         .allowedMethods("*")
                         .allowedHeaders("*")
